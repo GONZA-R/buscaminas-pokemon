@@ -5,14 +5,23 @@ Tocá todos los Pokémon que dicen **SÍ**… porque los que dicen **NO** son mi
 
 ## Cómo se juega
 
+- Arriba aparece una pregunta: tipo, color, forma, evolución, tamaño… o **¿Quién hace este sonido?** 🔊 (suena el grito de un Pokémon).
+- Los tipos no se ven en las cartas: ¡tenés que saberlos!
 - Tenés 3 Poké Balls (vidas). Cada Pokémon que explota te saca una.
-- Cuando encontrás todos los que cumplen, viene otra pregunta. Cada 3 preguntas cambia el tablero.
-- Sumás puntos por cada acierto y extra por terminar rápido y sin errores.
-- **Fácil:** 16 Pokémon, preguntas de tipo y color, sin reloj.
+- Cuando encuentran todos los que cumplen, viene otra pregunta. Cada 3 preguntas cambia el tablero.
+- **Fácil:** 16 Pokémon, tipo, color y sonido, sin reloj.
 - **Medio:** 24 Pokémon, también forma, evolución y generación, 45 s por pregunta.
-- **Difícil:** 30 Pokémon, también altura y peso, tipos ocultos, 30 s por pregunta.
+- **Difícil:** 30 Pokémon, también altura y peso, 30 s por pregunta.
 - Podés elegir de qué generaciones salen los Pokémon (de la 1 a la 9).
-- Los récords quedan guardados en el navegador de cada dispositivo.
+
+## Modos
+
+- **Solo:** sumá puntos hasta quedarte sin Poké Balls. Los récords quedan guardados en el dispositivo.
+- **2 en este equipo:** por turnos en el mismo celu o compu.
+- **2 online:** cada uno en su celu. Uno crea la partida y le pasa el código de 4 letras (o el link) al otro.
+- En 2 jugadores: si acertás, seguís tocando; si explota, le toca al otro. Cada toque tiene tiempo límite.
+  Gana quien tenga más puntos después de 8 preguntas, o el que no se quede sin Poké Balls.
+- El modo online usa la misma base de Firebase que «¿Quién es ese Pokémon?» (partidas en `games/bm-CÓDIGO`).
 
 También está el **buscaminas clásico** con Voltorb escondidos en el pasto (`clasico.html`).
 
