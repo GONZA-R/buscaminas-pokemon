@@ -16,11 +16,18 @@ Tocá todos los Pokémon que dicen **SÍ**… porque los que dicen **NO** son mi
 
 ## Modos
 
-- **Solo:** sumá puntos hasta quedarte sin Poké Balls. Los récords quedan guardados en el dispositivo.
-- **2 en este equipo:** por turnos en el mismo celu o compu.
+- **Solo:** jugás vos. Los récords quedan guardados en el dispositivo.
+- **2 en este equipo:** en el mismo celu o compu.
 - **2 online:** cada uno en su celu. Uno crea la partida y le pasa el código de 4 letras (o el link) al otro.
-- En 2 jugadores: si acertás, seguís tocando; si explota, le toca al otro. Cada toque tiene tiempo límite.
-  Gana quien tenga más puntos después de 8 preguntas, o el que no se quede sin Poké Balls.
+
+## Reglas
+
+- **Poké Balls:** 3 vidas; si errás, perdés una. De a 2 se juega por turnos: si acertás, seguís tocando;
+  si explota, le toca al otro (cada toque tiene tiempo límite). Gana quien tenga más puntos después de 8 preguntas,
+  o el que no se quede sin Poké Balls.
+- **Contrarreloj (1, 2, 3 o 5 minutos):** no hay vidas; si errás, explota y pasás a la pregunta siguiente.
+  Gana quien haga más puntos antes de que se termine el tiempo. Online, cada uno va a su ritmo con sus propias
+  preguntas y ve los puntos del otro en vivo. En el mismo equipo, juega uno y después el otro.
 - El modo online usa la misma base de Firebase que «¿Quién es ese Pokémon?» (partidas en `games/bm-CÓDIGO`).
 
 También está el **buscaminas clásico** con Voltorb escondidos en el pasto (`clasico.html`).

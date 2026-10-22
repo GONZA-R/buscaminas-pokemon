@@ -60,6 +60,7 @@ footer a{color:var(--muted)}
 .opt small{color:var(--muted);font-size:12.5px;line-height:1.35}
 .opt[aria-pressed=true]{background:var(--accent);color:var(--ink);box-shadow:none}
 .opt[aria-pressed=true] small{color:#4a4020}
+.opts.dos{grid-template-columns:repeat(2,minmax(0,1fr))}
 .gens{display:flex;flex-wrap:wrap;gap:6px}
 .gen{border:0;border-radius:999px;padding:6px 12px;font-weight:800;font-size:13px;background:#0e1830;color:var(--muted);box-shadow:inset 0 0 0 2px var(--line)}
 .gen[aria-pressed=true]{background:var(--accent);color:var(--ink);box-shadow:none}
@@ -68,7 +69,7 @@ footer a{color:var(--muted)}
 .sep{display:flex;align-items:center;gap:10px;color:var(--muted);font-weight:800;font-size:13px}
 .sep::before,.sep::after{content:"";flex:1;height:2px;background:var(--line)}
 @media (max-width:860px){.hero,.cols{grid-template-columns:1fr}}
-@media (max-width:600px){.opts{grid-template-columns:1fr}.opt{flex-direction:row;align-items:baseline;gap:10px}.opt b{min-width:80px;flex:none}}
+@media (max-width:600px){.opts,.opts.dos{grid-template-columns:1fr}.opt{flex-direction:row;align-items:baseline;gap:10px}.opt b{min-width:80px;flex:none}}
 
 .tabs{display:flex;gap:6px}
 .tabs button{flex:1;border:0;border-radius:8px;padding:6px 4px;font-weight:800;font-size:13px;background:#0e1830;color:var(--muted)}
@@ -98,6 +99,11 @@ footer a{color:var(--muted)}
 @keyframes pierde{30%{transform:scale(1.6) rotate(-20deg)}100%{transform:none}}
 .pts{font-family:var(--display);font-size:16px;color:var(--accent);font-variant-numeric:tabular-nums}
 .pts small{font-family:var(--body);font-size:12px;color:var(--muted);font-weight:700;margin-right:6px}
+/* Contrarreloj */
+.crono{font-family:var(--display);font-size:20px;color:var(--fg);font-variant-numeric:tabular-nums;background:#0a1226;border-radius:8px;padding:8px 10px 6px}
+.crono.poco{color:var(--red)}
+.pts.riv{color:var(--p2)}
+.cuenta{font-family:var(--display);font-size:clamp(60px,18vw,110px);color:var(--accent);text-shadow:4px 4px 0 #0a1226;line-height:1.2}
 /* Dos jugadores */
 .jugs{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:stretch}
 .jug{background:var(--panel);border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;min-width:0;box-shadow:inset 0 0 0 2px transparent;transition:box-shadow .2s,opacity .2s;opacity:.6}
@@ -174,6 +180,8 @@ footer a{color:var(--muted)}
   .vidas i{width:22px;height:22px}
   .pts{font-size:13px}
   .jugs{grid-template-columns:1fr 1fr;gap:6px}
+  .crono{font-size:15px;padding:7px 7px 5px}
+  .top .pts small{display:block;margin:0;font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .jugs .btn{grid-column:1 / -1;order:-1;justify-self:end;padding:4px 10px;font-size:13px;display:none}
   .jug{padding:5px 8px}
   .jug .vidas i{width:15px;height:15px}
@@ -375,6 +383,10 @@ let dif = DIFS[leer("bmp_dif", "")] ? leer("bmp_dif", "") : "facil";
 let modo = MODOS[leer("bmp_modo", "")] ? leer("bmp_modo", "") : "solo";
 let gens = leer("bmp_gens", [1]); if (!Array.isArray(gens) || !gens.length || !gens.every(n => GENS.some(g => g.n === n))) gens = [1];
 let nombres = leer("bmp_nombres", ["", ""]); if (!Array.isArray(nombres)) nombres = ["", ""];
+let reglas = leer("bmp_reglas", "pb") === "cr" ? "cr" : "pb";   // pb: Poké Balls · cr: contrarreloj
+const DURS = [1, 2, 3, 5];
+let dur = DURS.includes(leer("bmp_dur", 2)) ? leer("bmp_dur", 2) : 2;   // minutos de la partida en contrarreloj
+let LCR = null, SALA = null;   // contrarreloj en un mismo equipo (turno de cada uno) y sala online
 let verRec = dif, ultimoRec = null;
 
 const $app = document.getElementById("app");
@@ -404,7 +416,11 @@ function dbPrueba(){
   addEventListener("storage", e => { if (e.key && e.key.startsWith("bmdb:")) fire(e.key.slice(5)); });
   return {
     get: async p => read(p),
-    set: async (p, v) => { localStorage.setItem(K(p), JSON.stringify(v)); setTimeout(() => fire(p), 0); },
+    set: async (p, v) => {
+      const partes = p.split("/"), raiz = partes.slice(0, 2).join("/");
+      if (partes.length > 2) { const o = read(raiz) || {}; let x = o; partes.slice(2, -1).forEach(k => x = x[k] = x[k] || {}); x[partes[partes.length - 1]] = v; v = o; }
+      localStorage.setItem(K(raiz), JSON.stringify(v)); setTimeout(() => fire(raiz), 0);
+    },
     on: (p, fn) => { subs.set(p, [...(subs.get(p) || []), fn]); setTimeout(() => fn(read(p)), 0); return () => subs.set(p, (subs.get(p) || []).filter(f => f !== fn)); },
   };
 }
@@ -462,7 +478,7 @@ function candidatas(g){
   return [...ks].filter(k => D.preg.includes(k.split(":")[0]) && !g.recientes.includes(k))
     .filter(k => { const m = b.filter(id => cumple(id, k)).length; return m >= 2 && m <= max; });
 }
-const limite = g => { const s = dos(g) ? DIFS[g.dif].t2 : DIFS[g.dif].tiempo; return s ? ahora() + s * 1000 : 0; };
+const limite = g => { if (g.cr) return 0; const s = dos(g) ? DIFS[g.dif].t2 : DIFS[g.dif].tiempo; return s ? ahora() + s * 1000 : 0; };
 function siguiente(g){
   g.nPreg++;
   if (dos(g) && g.nPreg > PREG_2J) { g.nPreg--; return terminar(g, "preguntas"); }
@@ -477,7 +493,7 @@ function siguiente(g){
     g.k = bolsa[Math.floor(Math.random() * bolsa.length)];
   }
   g.recientes = [g.k, ...g.recientes].slice(0, 6);
-  g.ok = []; g.okDe = []; g.boom = []; g.limpia = true; g.estado = "jugando"; g.faltaron = false;
+  g.ok = []; g.okDe = []; g.boom = []; g.limpia = true; g.estado = "jugando"; g.faltaron = false; g.salto = false;
   if (dos(g)) g.turno = (g.empieza + g.nPreg - 1) % 2;
   g.t0 = ahora(); g.fin = limite(g);
 }
@@ -491,7 +507,9 @@ function tocarG(g, id){
     if (!faltan(g)) completar(g);
     else if (dos(g)) g.fin = limite(g);   // en 2 jugadores, el reloj es por toque
   } else {
-    g.boom.push(id); j.vidas--; g.limpia = false; g.ev = { seq, tipo: "boom", id, por: g.turno };
+    g.boom.push(id); g.limpia = false; g.ev = { seq, tipo: "boom", id, por: g.turno };
+    if (g.cr) { g.saltadas = (g.saltadas || 0) + 1; g.estado = "pausa"; g.salto = true; g.prox = ahora() + 1100; return true; }   // contrarreloj: si errás, pasás de pregunta
+    j.vidas--;
     if (j.vidas <= 0) terminar(g, "vidas");
     else if (dos(g)) { g.turno = 1 - g.turno; g.fin = limite(g); }
   }
@@ -500,9 +518,10 @@ function tocarG(g, id){
 function completar(g){
   const j = g.jug[g.turno];
   const seg = g.fin ? Math.max(0, Math.ceil((g.fin - ahora()) / 1000)) : Math.max(0, 20 - Math.floor((ahora() - g.t0) / 1000));
-  const extra = dos(g) ? 15 : 20 + seg + (g.limpia ? 15 : 0);
+  const extra = g.cr ? 15 + (g.limpia ? 10 : 0) : dos(g) ? 15 : 20 + seg + (g.limpia ? 15 : 0);
   j.pts += extra; g.ev.tipo = "completa"; g.ev.extra = extra;
-  g.estado = "pausa"; g.prox = ahora() + 1700;
+  g.hechas = (g.hechas || 0) + 1;
+  g.estado = "pausa"; g.prox = ahora() + (g.cr ? 900 : 1700);
 }
 function agotado(g){
   const j = g.jug[g.turno];
@@ -526,6 +545,7 @@ const responsable = hasta => G.m !== "online" || G.turno === yo || ahora() > has
 function publicar(){
   G.seq = (G.seq || 0) + 1;
   if (G.m === "online") DB.set(ruta(CODE), JSON.parse(JSON.stringify(G))).catch(() => toast("Se cortó la conexión. Revisá internet.", true));
+  else if (G.cr && G.cr.sala === "online" && CODE) DB.set(ruta(CODE) + "/res/" + yo, { pts: G.jug[0].pts, hechas: G.hechas || 0, fin: G.estado === "fin" }).catch(() => {});
   mostrar();
 }
 
@@ -548,7 +568,8 @@ function portada(){
         <li>Tocá <b>todos</b> los Pokémon que cumplen. Te dice cuántos faltan. ¡Los tipos no se ven, tenés que saberlos!</li>
         <li>Si tocás uno que <b>no</b> cumple, explota y perdés una <span class="sp" style="background-image:url(${IMG.ball})"></span> Poké Ball. Tenés ${VIDAS}.</li>
         <li>Cuando los encuentran todos, viene otra pregunta. Cada ${POR_TABLERO} preguntas cambia el tablero.</li>
-        <li><b>De a 2:</b> juegan por turnos. Si acertás, seguís; si explota, le toca al otro. Gana quien tenga más puntos después de ${PREG_2J} preguntas… o el que no se quede sin Poké Balls.</li>
+        <li><b>Contrarreloj:</b> no hay vidas; si errás, explota y pasás a la pregunta siguiente. Gana quien haga más puntos antes de que termine el tiempo (en online, cada uno va a su ritmo).</li>
+        <li><b>Poké Balls de a 2:</b> juegan por turnos. Si acertás, seguís; si explota, le toca al otro. Gana quien tenga más puntos después de ${PREG_2J} preguntas… o el que no se quede sin Poké Balls.</li>
       </ol>
     </div>
   </section>
@@ -558,6 +579,12 @@ function portada(){
         <h2>Modo</h2>
         <div class="opts">${Object.entries(MODOS).map(([k, d]) => `<button class="opt" data-modo="${k}" aria-pressed="${k === modo}"><b>${d.n}</b><small>${d.txt}</small></button>`).join("")}</div>
         <div id="modoExtra"></div>
+        <h2>Reglas</h2>
+        <div class="opts dos">
+          <button class="opt" data-reglas="pb" aria-pressed="${reglas === "pb"}"><b>Poké Balls</b><small>${VIDAS} vidas: si errás, perdés una. De a 2, por turnos.</small></button>
+          <button class="opt" data-reglas="cr" aria-pressed="${reglas === "cr"}"><b>Contrarreloj</b><small>Si errás, pasás de pregunta. Gana el que hace más puntos en el tiempo.</small></button>
+        </div>
+        <div class="gens" id="durs" ${reglas === "cr" ? "" : "hidden"}>${DURS.map(d => `<button class="gen" data-dur="${d}" aria-pressed="${d === dur}">${d} min</button>`).join("")}</div>
       </div>
       <div class="panel" id="pDif">
         <h2>Dificultad</h2>
@@ -569,7 +596,7 @@ function portada(){
       <div class="start" id="start"></div>
     </div>
     <div class="panel">
-      <h2>Récords (solo)</h2>
+      <h2 id="recT">Récords</h2>
       <div class="tabs" id="tabs"></div>
       <ol class="recs" id="recs"></ol>
     </div>
@@ -592,14 +619,15 @@ function modoExtra(codeURL = ""){
     st.innerHTML = `<button class="btn pri big" id="crear">Crear partida</button>
       <div class="sep" style="width:100%">o unite a la de tu amigo</div>
       <div class="row" style="justify-content:center"><input type="text" id="codigo" maxlength="4" placeholder="CÓDIGO" autocomplete="off" value="${esc(codeURL)}"><button class="btn" id="unirse">Unirme</button></div>
-      <p class="muted" style="width:100%;text-align:center;font-size:13px">La dificultad y las generaciones las elige el que crea la partida.</p>`;
+      <p class="muted" style="width:100%;text-align:center;font-size:13px">Las reglas, la dificultad y las generaciones las elige el que crea la partida.</p>`;
   }
   $("pDif").style.display = "";
 }
 function records(){
   const tabs = $("tabs"); if (!tabs) return;
   tabs.innerHTML = Object.entries(DIFS).map(([k, d]) => `<button data-rec="${k}" aria-pressed="${k === verRec}">${d.n}</button>`).join("");
-  const l = leer("bmp2_rec", {})[verRec] || [];
+  $("recT").textContent = reglas === "cr" ? `Récords · solo · contrarreloj ${dur} min` : "Récords · solo · Poké Balls";
+  const l = reglas === "cr" ? leer("bmp2_cr", {})[verRec + "-" + dur] || [] : leer("bmp2_rec", {})[verRec] || [];
   $("recs").innerHTML = l.length
     ? l.map(r => `<li class="${r.id === ultimoRec ? "nuevo" : ""}"><span class="t">${r.p}</span><span class="q">pts · ${r.q} preg.</span><span class="muted">${r.f}</span></li>`).join("")
     : `<li class="vacio">Todavía no jugaste en ${DIFS[verRec].n}.</li>`;
@@ -623,6 +651,7 @@ async function cargarGens(lista, boton){
 async function empezar(){
   leerNombres();
   if (!await cargarGens(gens, "jugar")) return;
+  if (reglas === "cr") { if (modo === "local") LCR = { noms: [nombres[0] || "Jugador 1", nombres[1] || "Jugador 2"], res: [], idx: 0 }; return empezarCR(modo); }
   const noms = modo === "local" ? [nombres[0] || "Jugador 1", nombres[1] || "Jugador 2"] : ["Vos"];
   G = nuevoG(modo, noms); yo = 0; deCero();
   siguiente(G); publicar();
@@ -636,7 +665,7 @@ async function crearOnline(){
   let code = codigoNuevo();
   for (let i = 0; i < 5 && await DB.get(ruta(code)); i++) code = codigoNuevo();
   const g = nuevoG("online", [nombres[0] || "Jugador 1", ""]);
-  g.estado = "espera"; g.p1 = UID; g.code = code;
+  g.estado = "espera"; g.p1 = UID; g.code = code; g.reglas = reglas; g.dur = dur;
   try { await DB.set(ruta(code), g); } catch (e) { b.disabled = false; b.textContent = "Crear partida"; return toast("No se pudo crear la partida.", true); }
   cargarGen(g.gens[0]).catch(() => {});
   entrar(code, 0);
@@ -671,6 +700,7 @@ function recibir(g){
   recibiendo = recibiendo.then(async () => {
     if (!CODE) return;
     if (!g) { toast("La partida ya no existe.", true); return portada(); }
+    if (g.reglas === "cr") return salaCR(g);
     if (G && G.m === "online" && (g.seq || 0) < (G.seq || 0) && g.estado !== "lista") return;   // llegó tarde una versión vieja
     if (g.estado !== "fin") finVisto = false;
     G = g;
@@ -686,7 +716,7 @@ function recibir(g){
     if (G === g) mostrar();
   });
 }
-function pantallaEspera(uniendo){
+function pantallaEspera(uniendo, s = G){
   const link = location.origin + location.pathname + "?c=" + CODE;
   $app.innerHTML = `<div class="sala">
     <i class="v" aria-hidden="true"></i>
@@ -695,7 +725,7 @@ function pantallaEspera(uniendo){
     <div class="code">${CODE}</div>
     <p class="muted">Que entre a esta misma página, elija <b>2 online</b> y ponga el código.<br>O mandale el link directo:</p>
     <div class="row" style="justify-content:center"><button class="btn pri" id="compartir">Compartir link</button><button class="btn ghost" id="cancelar">Cancelar</button></div>
-    <p class="muted" style="font-size:13px">${DIFS[G.dif].n} · Gen ${G.gens.join(", ")}</p>`}
+    <p class="muted" style="font-size:13px">${s.reglas === "cr" ? `Contrarreloj ${s.dur} min` : "Poké Balls"} · ${DIFS[s.dif].n} · Gen ${s.gens.join(", ")}</p>`}
   </div>`;
   const c = $("compartir");
   if (c) c.onclick = async () => {
@@ -711,6 +741,11 @@ function cardHTML(id, i){
   return `<button class="card" data-id="${id}" style="--i:${i}" aria-label="${esc(p.n)}"><img src="${SPR[id] || ""}" alt="" width="80" height="80"><span class="nm">${esc(p.n)}</span></button>`;
 }
 function hudTop(){
+  if (G.cr) return `<div class="top">
+      <span class="crono" id="crono">${reloj2(G.cr.fin - G.cr.inicio)}</span>
+      <div class="pts"><small>${esc(G.jug[0].n)}</small><span id="pts0">${G.jug[0].pts}</span></div>
+      ${G.cr.sala === "online" ? `<div class="pts riv"><small>${esc(G.cr.rivalN || "Rival")}</small><span id="ptsR">${(G.cr.rival || {}).pts || 0}</span></div>` : ""}
+      <button class="btn ghost mini" id="salir">Salir</button></div>`;
   if (!dos(G)) return `<div class="top">
       <div class="vidas" id="vidas0" title="Poké Balls que te quedan">${vidasHTML(0)}</div>
       <div class="pts"><small>puntos</small><span id="pts0">${G.jug[0].pts}</span></div>
@@ -734,13 +769,14 @@ function pantallaJuego(){
         <span class="s" id="s"></span></div>
       ${esSonido(G.k) ? `<button class="oir" id="oir">🔊 Escuchar</button>` : ""}
     </div>
-    <div class="bar" id="bar" ${(dos(G) ? D.t2 : D.tiempo) ? "" : "hidden"}><i id="barI"></i></div>
+    <div class="bar" id="bar" ${G.cr || (dos(G) ? D.t2 : D.tiempo) ? "" : "hidden"}><i id="barI"></i></div>
   </div>
   <div class="board${nuevo ? " nuevo" : ""}" id="board" style="--cols:${D.cartas === 30 ? 10 : 8}">${G.board.map(cardHTML).join("")}</div>
   ${dos(G) ? `<div class="row" style="justify-content:center"><button class="btn ghost mini salir2" id="salirAbajo">Salir de la partida</button></div>` : ""}`;
 }
 function mostrar(){
   if (!G || G.estado === "espera" || G.estado === "lista") return;
+  if (G.estado === "cuenta") { if (!$("cuentaN")) pantallaCuenta(); clearInterval(reloj); reloj = setInterval(tic, 100); return tic(); }
   const clave = G.nPreg + "|" + G.board.join(",") + "|" + (CODE || "");
   if (clave !== tableroDe || !$("board")) pantallaJuego();
   // cartas
@@ -748,7 +784,7 @@ function mostrar(){
     const el = carta(id); if (!el) return;
     const i = G.ok.indexOf(id);
     let cls = "card" + (i >= 0 ? " ok" + (dos(G) ? " j" + ((G.okDe[i] || 0) + 1) : "") : G.boom.includes(id) ? " boom" : "");
-    if ((G.faltaron || G.estado === "fin") && i < 0 && cumple(id, G.k)) cls += " falto";
+    if ((G.faltaron || G.salto || G.estado === "fin") && i < 0 && cumple(id, G.k)) cls += " falto";
     if (el.className !== cls) el.className = cls;
   });
   // marcador
@@ -757,10 +793,11 @@ function mostrar(){
     const p = $("pts" + i); if (p) p.textContent = j.pts;
     const c = $("jug" + i); if (c) c.classList.toggle("activo", G.estado !== "fin" && G.turno === i);
   });
+  if (G.cr && $("ptsR")) $("ptsR").textContent = (G.cr.rival || {}).pts || 0;
   const b = $("board"); b.classList.toggle("espera", G.m === "online" && G.turno !== yo && G.estado === "jugando");
   // pregunta y estado
   const q = $("qbox"), s = $("s");
-  q.className = "qbox" + (G.estado === "pausa" && !G.faltaron ? " bien" : (G.faltaron || G.estado === "fin") ? " mal" : "");
+  q.className = "qbox" + (G.estado === "pausa" && !G.faltaron && !G.salto ? " bien" : (G.faltaron || G.salto || G.estado === "fin") ? " mal" : "");
   const quien = i => `<b class="t${i + 1}">${esc(nombre(i))}</b>`;
   if (G.estado === "jugando") {
     const f = `faltan <b>${faltan(G)}</b> de ${total(G)}`;
@@ -768,11 +805,11 @@ function mostrar(){
       : G.m === "online" ? (G.turno === yo ? `¡Te toca! · ${f}` : `Juega ${quien(G.turno)}… · ${f}`)
       : `Turno de ${quien(G.turno)} · ${f}`;
   } else if (G.estado === "pausa") {
-    s.innerHTML = G.faltaron ? "¡Se acabó el tiempo! Te marco los que faltaban."
+    s.innerHTML = G.salto ? "¡Explotó! Pasás a la pregunta siguiente…" : G.faltaron ? "¡Se acabó el tiempo! Te marco los que faltaban."
       : (dos(G) ? `¡${quien(G.ev.por)} completó la pregunta! +${G.ev.extra}` : `${G.limpia ? "¡Perfecto, sin errores! " : "¡Bien! "}+${G.ev.extra} puntos`);
-  } else if (G.estado === "fin") s.textContent = "Los amarillos eran los que faltaban.";
+  } else if (G.estado === "fin") s.textContent = G.cr ? "¡Se terminó el tiempo!" : "Los amarillos eran los que faltaban.";
   efectos();
-  if (G.estado === "fin" && !finVisto) { finVisto = true; final(); }
+  if (G.estado === "fin" && !finVisto) { finVisto = true; if (!G.cr) final(); }
   clearInterval(reloj); if (G.estado !== "fin") reloj = setInterval(tic, 100);
   tic();
 }
@@ -802,6 +839,21 @@ function efectos(){
 let reloj = 0, ultTick = 0;
 function tic(){
   if (!G) return;
+  if (G.cr) {
+    if (G.estado === "cuenta") {
+      const n = $("cuentaN"), s = Math.ceil((G.cr.inicio - ahora()) / 1000);
+      if (n && n.textContent !== String(Math.max(s, 1))) { n.textContent = Math.max(s, 1); sfx("tick"); }
+      if (ahora() >= G.cr.inicio) { siguiente(G); publicar(); }
+      return;
+    }
+    if (G.estado === "fin") return;
+    const queda = G.cr.fin - ahora(), tot = G.cr.fin - G.cr.inicio, c = $("crono"), el = $("barI");
+    if (c) { c.textContent = reloj2(queda); c.classList.toggle("poco", queda < 10000); }
+    if (el) { el.style.transform = `scaleX(${Math.max(0, Math.min(1, queda / tot))})`; el.classList.toggle("poco", queda < 10000); }
+    const s = Math.ceil(queda / 1000);
+    if (queda < 5000 && queda > 0 && s !== ultTick) { ultTick = s; sfx("tick"); }
+    if (queda <= 0) return finCR();
+  }
   if (G.estado === "jugando" && G.fin) {
     const queda = G.fin - ahora(), D = DIFS[G.dif], tot = (dos(G) ? D.t2 : D.tiempo) * 1000, el = $("barI");
     if (el) { el.style.transform = `scaleX(${Math.max(0, Math.min(1, queda / tot))})`; el.classList.toggle("poco", queda < tot / 4); }
@@ -849,26 +901,134 @@ function final(){
 }
 function anotar(){
   if (!G.jug[0].pts) return -1;
-  const R = leer("bmp2_rec", {}), l = R[G.dif] || [];
+  const clave = G.cr ? G.dif + "-" + G.cr.dur : G.dif, almacen = G.cr ? "bmp2_cr" : "bmp2_rec";
+  const R = leer(almacen, {}), l = R[clave] || [];
   const r = { p: G.jug[0].pts, q: G.nPreg - 1, f: new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" }), id: Date.now() };
-  l.push(r); l.sort((a, b) => b.p - a.p); R[G.dif] = l.slice(0, 5); guardar("bmp2_rec", R);
-  const pos = R[G.dif].findIndex(x => x.id === r.id);
+  if (G.cr) r.q = G.hechas || 0;
+  l.push(r); l.sort((a, b) => b.p - a.p); R[clave] = l.slice(0, 5); guardar(almacen, R);
+  const pos = R[clave].findIndex(x => x.id === r.id);
   ultimoRec = pos >= 0 ? r.id : null; verRec = G.dif;
   return pos;
 }
 function revancha(){
+  if (G && G.cr) {
+    if (G.cr.sala === "online") return SALA && arrancarSalaCR({ ...SALA });
+    if (G.cr.sala === "local" && LCR) LCR = { noms: LCR.noms, res: [], idx: 0 };
+    dif = G.dif; gens = [...G.gens]; dur = G.cr.dur;
+    return empezarCR(G.cr.sala);
+  }
   if (G.m !== "online") { dif = G.dif; gens = [...G.gens]; modo = G.m; const noms = G.jug.map(j => j.n), emp = G.empieza; G = nuevoG(modo, noms); G.empieza = 1 - emp; deCero(); siguiente(G); publicar(); return; }
   const v = G, g = { ...nuevoG("online", v.jug.map(j => j.n)), dif: v.dif, gens: v.gens, p1: v.p1, p2: v.p2, code: v.code, empieza: 1 - v.empieza, seq: (v.seq || 0) + 1 };
   g.ev = { seq: (v.ev.seq || 0) + 1 };
   G = g; finVisto = false; siguiente(G); publicar();
 }
 function salir(){
+  if (G && G.cr) {
+    if (G.estado !== "fin" && G.estado !== "cuenta" && !confirm(G.cr.sala === "online" ? "¿Salís de la partida? Gana tu rival." : "¿Salís de la partida?")) return;
+    if (G.cr.sala === "online" && G.estado !== "fin" && CODE) DB.set(ruta(CODE) + "/aband", yo).catch(() => {});
+    return portada();
+  }
   if (G && G.m === "online" && G.estado !== "fin") {
     if (!confirm("¿Salís de la partida? Gana tu rival.")) return;
     G.estado = "fin"; G.motivo = "abandono"; G.ganador = 1 - yo; G.ev = { ...G.ev, seq: G.ev.seq + 1, tipo: "fin" };
     G.seq = (G.seq || 0) + 1; DB.set(ruta(CODE), JSON.parse(JSON.stringify(G))).catch(() => {});
   } else if (G && G.estado !== "fin" && G.nPreg > 1 && !confirm("¿Salís de la partida?")) return;
   portada();
+}
+
+/* ---------- contrarreloj ----------
+   Cada jugador tiene sus propias preguntas; solo se comparte el puntaje. Termina cuando se acaba el tiempo de la partida. */
+const reloj2 = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+function crearP(n, d, gs, inicio, fin, sala){
+  const g = nuevoG("cr", [n]);
+  g.dif = d; g.gens = [...gs]; g.cr = { inicio, fin, sala, dur: Math.round((fin - inicio) / 60000) }; g.estado = "cuenta"; g.hechas = 0; g.saltadas = 0;
+  return g;
+}
+function empezarCR(sala){
+  const n = sala === "local" ? LCR.noms[LCR.idx] : "Vos", ini = ahora() + 3500;
+  G = crearP(n, dif, gens, ini, ini + dur * 60000, sala); yo = 0; deCero(); mostrar();
+}
+function pantallaCuenta(){
+  const c = G.cr, D = c.dur;
+  $app.innerHTML = `<div class="sala">
+    <h2>${c.sala === "local" ? `Le toca a ${esc(G.jug[0].n)}` : c.sala === "online" ? `${esc(G.jug[0].n)} contra ${esc(c.rivalN || "tu rival")}` : "¡Preparate!"}</h2>
+    <div class="cuenta" id="cuentaN">${Math.max(1, Math.ceil((c.inicio - ahora()) / 1000))}</div>
+    <p class="muted">Contrarreloj · ${D} min · ${DIFS[G.dif].n}<br>Si errás, pasás de pregunta. ¡Hacé todos los puntos que puedas!</p>
+    <button class="btn ghost mini" id="salir">Salir</button>
+  </div>`;
+}
+function finCR(){
+  if (!G || !G.cr || G.estado === "fin") return;
+  G.estado = "fin"; clearInterval(reloj); sfx("tiempo"); vibrar(200);
+  publicar();
+  if (G.cr.sala === "local" && LCR && LCR.idx === 0) { LCR.res[0] = G.jug[0].pts; return setTimeout(pantallaPase, 900); }
+  if (G.cr.sala === "local" && LCR) LCR.res[1] = G.jug[0].pts;
+  setTimeout(() => finalCR(false), G.cr.sala === "online" ? 1600 : 500);
+}
+function pantallaPase(){
+  $app.innerHTML = `<div class="sala">
+    <h2>¡Tiempo, ${esc(LCR.noms[0])}!</h2>
+    <div class="cuenta" style="font-size:clamp(34px,10vw,56px)">${LCR.res[0]} pts</div>
+    <p class="muted">Ahora le toca a <b>${esc(LCR.noms[1])}</b>. Pasale el celu (o la compu).</p>
+    <button class="btn pri big" id="sigJug">¡Empezar, ${esc(LCR.noms[1])}!</button>
+  </div>`;
+}
+function finalCR(silencio){
+  if (!G || !G.cr || !$("hud")) return;
+  const c = G.cr, D = c.dur;
+  let titulo, grande, sub = `Completaste ${G.hechas} ${G.hechas === 1 ? "pregunta" : "preguntas"} y te explotaron ${G.saltadas}. Contrarreloj ${D} min · ${DIFS[G.dif].n}.`, bueno = false;
+  if (c.sala === "solo") {
+    const pos = silencio ? -1 : anotar(); bueno = pos === 0;
+    titulo = bueno ? "¡Nuevo récord!" : "¡Se acabó el tiempo!"; grande = G.jug[0].pts + " pts";
+    if (pos > 0) sub += ` Quedaste ${pos + 1}.º en tus récords.`;
+  } else {
+    const filas = c.sala === "local" ? LCR.noms.map((n, i) => ({ n, p: LCR.res[i] || 0 }))
+      : [{ n: G.jug[0].n, p: G.jug[0].pts }, { n: c.rivalN || "Rival", p: (c.rival || {}).pts || 0 }];
+    const [a, b] = filas, fue = c.sala === "online" && c.aband != null && c.aband !== yo;
+    const gana = fue ? 0 : a.p === b.p ? -1 : a.p > b.p ? 0 : 1;
+    titulo = gana === -1 ? "¡Empate!" : c.sala === "online" ? (gana === 0 ? "¡Ganaste!" : `Ganó ${filas[1].n}`) : `¡Ganó ${filas[gana].n}!`;
+    grande = filas.map(f => `${esc(f.n)}: ${f.p}`).join(" · ");
+    if (fue) sub = `${esc(filas[1].n)} se fue de la partida.`;
+    else if (c.sala === "local") sub = `Contrarreloj ${D} min · ${DIFS[G.dif].n}.`;
+    bueno = c.sala === "local" || gana !== 1;
+  }
+  if (!silencio) setTimeout(() => sfx(bueno ? "record" : "fin"), 300);
+  const viejo = $("msg"); if (viejo) viejo.remove();
+  const hud = $("hud");
+  hud.insertAdjacentHTML("afterbegin", `<div class="msg${bueno ? " rec" : ""}" id="msg">
+    <div class="pair"><i style="background-image:url(${bueno ? IMG.eevee : IMG.psyduck})"></i><i style="background-image:url(${IMG.electrode})"></i></div>
+    <b class="px">${esc(titulo)}</b>
+    <span class="big">${grande}</span>
+    <span class="muted">${sub}</span>
+    <div class="row" style="justify-content:center"><button class="btn pri" id="otra">${c.sala === "solo" ? "Jugar otra vez" : "Revancha"}</button><button class="btn ghost" id="inicio">Inicio</button></div>
+  </div>`);
+  hud.style.position = "static";
+  if ($("board")) $("board").classList.add("fin");
+  scrollTo({ top: 0, behavior: "smooth" });
+}
+function arrancarSalaCR(s){
+  const ini = ahora() + 4000;
+  s.estado = "cr"; s.inicio = ini; s.fin = ini + s.dur * 60000; s.res = { 0: { pts: 0 }, 1: { pts: 0 } }; delete s.aband;
+  DB.set(ruta(CODE), JSON.parse(JSON.stringify(s))).catch(() => toast("No se pudo arrancar la partida.", true));
+}
+async function salaCR(s){
+  SALA = s;
+  if (s.estado === "espera") return pantallaEspera(false, s);
+  if (s.estado === "lista") {
+    if (yo === 0) { if (await cargarGens(s.gens)) arrancarSalaCR(s); }
+    else pantallaEspera(true, s);
+    return;
+  }
+  if (s.estado !== "cr") return;
+  if (!await cargarGens(s.gens)) return;
+  const nueva = !G || !G.cr || G.cr.inicio !== s.inicio;
+  if (nueva && ahora() > s.fin) { toast("Esa partida ya terminó."); return portada(); }
+  if (nueva) { G = crearP(s.jug[yo].n, s.dif, s.gens, s.inicio, s.fin, "online"); deCero(); }
+  const res = s.res || {};
+  G.cr.rival = res[1 - yo] || { pts: 0 }; G.cr.rivalN = s.jug[1 - yo].n;
+  if (s.aband != null && s.aband !== yo && G.cr.aband == null) { G.cr.aband = s.aband; toast(`${G.cr.rivalN} se fue de la partida`, true); }
+  if (G.estado === "fin" && $("msg")) return finalCR(true);
+  mostrar();
 }
 
 /* ---------- clics ---------- */
@@ -885,11 +1045,14 @@ $app.addEventListener("click", e => {
     return;
   }
   if (t.dataset.rec) { verRec = t.dataset.rec; records(); return; }
+  if (t.dataset.reglas) { reglas = t.dataset.reglas; guardar("bmp_reglas", reglas); document.querySelectorAll("[data-reglas]").forEach(b => b.setAttribute("aria-pressed", b.dataset.reglas === reglas)); $("durs").hidden = reglas !== "cr"; records(); return; }
+  if (t.dataset.dur) { dur = +t.dataset.dur; guardar("bmp_dur", dur); document.querySelectorAll("[data-dur]").forEach(b => b.setAttribute("aria-pressed", +b.dataset.dur === dur)); records(); return; }
   switch (t.id) {
     case "jugar": return empezar();
     case "crear": return crearOnline();
     case "unirse": return unirse();
     case "otra": return revancha();
+    case "sigJug": LCR.idx = 1; return empezarCR("local");
     case "inicio": return portada();
     case "salir": case "salirAbajo": return salir();
     case "cancelar": { const c = CODE; salirOnline(); if (DB && c) DB.set(ruta(c), null).catch(() => {}); return portada(); }
